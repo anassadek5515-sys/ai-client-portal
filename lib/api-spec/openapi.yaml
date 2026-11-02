@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Commerce intelligence and tenant workspace API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: commerce
+    description: Tenant onboarding and commerce intelligence
 paths:
   /healthz:
     get:
@@ -24,6 +26,147 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /tenant/onboarding:
+    post:
+      operationId: createTenant
+      tags: [commerce]
+      summary: Create a tenant workspace from a submitted payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantOnboardingInput"
+      responses:
+        "201":
+          description: Tenant created with payment awaiting verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "401":
+          description: Authentication required
+        "409":
+          description: A workspace already exists for this account
+  /tenant:
+    get:
+      operationId: getTenant
+      tags: [commerce]
+      summary: Get the signed-in user's tenant workspace
+      responses:
+        "200":
+          description: Tenant workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "401":
+          description: Authentication required
+        "404":
+          description: Tenant not found
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [commerce]
+      summary: Get tenant dashboard summary
+      responses:
+        "200":
+          description: Summary metrics for the authenticated tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Authentication required
+        "404":
+          description: Tenant not found
+  /products:
+    get:
+      operationId: listProducts
+      tags: [commerce]
+      summary: List products for the authenticated tenant
+      responses:
+        "200":
+          description: Product inventory
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+        "401":
+          description: Authentication required
+        "404":
+          description: Tenant not found
+    post:
+      operationId: importProducts
+      tags: [commerce]
+      summary: Import products into the authenticated tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductImportInput"
+      responses:
+        "201":
+          description: Imported products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid product data
+        "401":
+          description: Authentication required
+        "404":
+          description: Tenant not found
+  /competitors/scan:
+    post:
+      operationId: scanCompetitors
+      tags: [commerce]
+      summary: Generate a rule-based competitor analysis preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompetitorScanInput"
+      responses:
+        "200":
+          description: Competitor analysis preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorScan"
+        "401":
+          description: Authentication required
+        "404":
+          description: Tenant not found
+  /assistants/generate:
+    post:
+      operationId: generateAssistantReport
+      tags: [commerce]
+      summary: Generate a rule-based growth report preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantInput"
+      responses:
+        "200":
+          description: Growth report preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantReport"
+        "401":
+          description: Authentication required
+        "404":
+          description: Tenant not found
 components:
   schemas:
     HealthStatus:
@@ -33,4 +176,135 @@ components:
           type: string
       required:
         - status
+    TenantOnboardingInput:
+      type: object
+      additionalProperties: false
+      required: [email, companyName, txid]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        companyName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        businessDetails:
+          type: string
+          maxLength: 2000
+        txid:
+          type: string
+          pattern: "^(0x)?[a-fA-F0-9]{64}$"
+        paymentAsset:
+          type: string
+          enum: [unknown, bnb, usdt, usdc, other]
+          default: unknown
+    Tenant:
+      type: object
+      required: [id, companyName, email, paymentStatus, createdAt]
+      properties:
+        id: { type: string }
+        companyName: { type: string }
+        email: { type: string, format: email }
+        paymentStatus:
+          type: string
+          enum: [pending_review, verified]
+        createdAt: { type: string, format: date-time }
+    Product:
+      type: object
+      required: [id, name, sku, price, inventory, health, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        sku: { type: string }
+        price: { type: number }
+        inventory: { type: integer }
+        category: { type: ["string", "null"] }
+        health:
+          type: string
+          enum: [healthy, low_stock, overstocked, review]
+        updatedAt: { type: string, format: date-time }
+    ProductInput:
+      type: object
+      additionalProperties: false
+      required: [name, sku, price, inventory]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        sku: { type: string, minLength: 1, maxLength: 100 }
+        price: { type: number, minimum: 0, maximum: 100000000 }
+        inventory: { type: integer, minimum: 0, maximum: 100000000 }
+        category: { type: ["string", "null"], maxLength: 120 }
+    ProductImportInput:
+      type: object
+      additionalProperties: false
+      required: [products]
+      properties:
+        products:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/ProductInput"
+    DashboardSummary:
+      type: object
+      required: [productCount, inventoryUnits, lowStockCount, averagePrice, paymentStatus]
+      properties:
+        productCount: { type: integer }
+        inventoryUnits: { type: integer }
+        lowStockCount: { type: integer }
+        averagePrice: { type: number }
+        paymentStatus:
+          type: string
+          enum: [pending_review, verified]
+    CompetitorScanInput:
+      type: object
+      additionalProperties: false
+      required: [productName, competitors]
+      properties:
+        productName: { type: string, minLength: 1, maxLength: 200 }
+        productPrice: { type: number, minimum: 0, maximum: 100000000 }
+        category: { type: string, maxLength: 120 }
+        competitors:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, price]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 120 }
+              price: { type: number, minimum: 0, maximum: 100000000 }
+              notes: { type: string, maxLength: 500 }
+    CompetitorScan:
+      type: object
+      required: [label, marketGapPercent, findings, counterStrategies]
+      properties:
+        label: { type: string }
+        marketGapPercent: { type: number }
+        findings:
+          type: array
+          items: { type: string }
+        counterStrategies:
+          type: array
+          items: { type: string }
+    AssistantInput:
+      type: object
+      additionalProperties: false
+      required: [assistant, goal, context]
+      properties:
+        assistant:
+          type: string
+          enum: [ad-copy, cro, expansion, pricing, seo]
+        goal: { type: string, minLength: 1, maxLength: 300 }
+        context: { type: string, maxLength: 3000 }
+    AssistantReport:
+      type: object
+      required: [assistant, label, content, generatedAt]
+      properties:
+        assistant:
+          type: string
+          enum: [ad-copy, cro, expansion, pricing, seo]
+        label: { type: string }
+        content: { type: string }
+        generatedAt: { type: string, format: date-time }
 
