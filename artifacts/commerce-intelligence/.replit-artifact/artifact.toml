@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Commerce Intelligence"
+description = "An AI commerce and business intelligence platform with a public crypto payment onboarding flow and a connected private tenant dashboard for product intelligence, competitor research, and growth assistants."
+version = "1.0.0"
+id = "artifacts/commerce-intelligence"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24471
+
+[services.development]
+run = "pnpm --filter @workspace/commerce-intelligence run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/commerce-intelligence", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/commerce-intelligence/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24471"
+BASE_PATH = "/"
