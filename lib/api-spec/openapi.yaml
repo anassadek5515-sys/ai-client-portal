@@ -39,7 +39,7 @@ paths:
               $ref: "#/components/schemas/TenantOnboardingInput"
       responses:
         "201":
-          description: Tenant created with payment awaiting verification
+          description: Tenant created with payment unverified and demo access active
           content:
             application/json:
               schema:
@@ -208,7 +208,7 @@ components:
         email: { type: string, format: email }
         paymentStatus:
           type: string
-          enum: [pending_review, verified]
+          enum: [unverified, verified]
         createdAt: { type: string, format: date-time }
     Product:
       type: object
@@ -255,7 +255,7 @@ components:
         averagePrice: { type: number }
         paymentStatus:
           type: string
-          enum: [pending_review, verified]
+          enum: [unverified, verified]
     CompetitorScanInput:
       type: object
       additionalProperties: false
